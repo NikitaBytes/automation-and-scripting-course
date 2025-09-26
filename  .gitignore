@@ -1,0 +1,11 @@
+# Виртуальное окружение
+.venv/
+env/
+venv/
+
+# Кэш Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.DS.Store
