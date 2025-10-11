@@ -1,0 +1,8 @@
+SHELL=/bin/bash
+PATH=/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+# Ежедневно в 06:00 — MDL→EUR за вчера
+0 6 * * * root API_KEY=my_secret_key_123_scripting LAB02_BASE_URL=http://host.docker.internal:8080/ date_yest="$(date -d 'yesterday' +\%F)" && python3 /opt/lab03/currency_exchange_rate.py --from MDL --to EUR --date "$date_yest" --api-key "$API_KEY" --base-url "$LAB02_BASE_URL" >> /var/log/cron.log 2>&1
+
+# По пятницам в 17:00 — MDL→USD за прошлую неделю (понедельник..воскресенье)
+0 17 * * 5 root API_KEY=my_secret_key_123_scripting LAB02_BASE_URL=http://host.docker.internal:8080/ /opt/lab03/weekly_usd.sh >> /var/log/cron.log 2>&1

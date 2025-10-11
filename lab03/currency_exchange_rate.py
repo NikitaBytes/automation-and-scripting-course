@@ -19,7 +19,7 @@ from datetime import datetime, date
 import requests
 
 # --- Константы путей (корень проекта = на уровень выше lab02/) ---
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parent
 DATA_DIR = PROJECT_ROOT / 'data'
 ERROR_LOG = PROJECT_ROOT / 'error.log'
 BASE_URL_DEFAULT = os.environ.get('LAB02_BASE_URL', 'http://localhost:8080/')
@@ -61,7 +61,7 @@ def parse_date(s: str) -> date:
 
 def check_range(d: date) -> date:
     lo = date(2025, 1, 1)
-    hi = date(2025, 9, 15)
+    hi = date(2025, 11, 15)
     if d < lo or d > hi:
         raise ValueError(f"Date '{d}' is outside dataset range [2025-01-01 .. 2025-09-15].")
     return d

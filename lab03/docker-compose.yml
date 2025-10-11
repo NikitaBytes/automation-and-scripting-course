@@ -1,0 +1,12 @@
+services:
+  cron:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: lab03_cron
+    environment:
+      API_KEY: "my_secret_key_123_scripting"
+      LAB02_BASE_URL: "http://host.docker.internal:8080/"
+    volumes:
+      - ./data:/opt/lab03/data
+    restart: unless-stopped

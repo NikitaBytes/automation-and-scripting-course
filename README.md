@@ -1,201 +1,298 @@
-# 💱 Лабораторная работа №2
+# 🕒 Лабораторная работа №3
 
-## Взаимодействие с Web API с помощью Python-скрипта (Currency Exchange Rate)
+## Автоматизация запуска Python-скрипта с помощью планировщика задач (cron)
 
 ---
 
-### Студент
+### 👤 Студент
 
 - **Имя и фамилия:** Савка Никита (Savca Nichita)
 - **Группа:** I2302
-- **Рабочая станция:** macOS (Apple Silicon, VS Code, встроенный терминал)
-- **Среда исполнения сервиса:** Docker (локально на macOS), HTTP на [`http://localhost:8080`](http://localhost:8080)
-- **Среда исполнения клиента:** Python 3.11+ (локально на macOS)
-- **Дата выполнения:** сентябрь 2025
+- **Рабочая станция:** macOS (Apple Silicon), VS Code, встроенный терминал
+- **Среда исполнения сервиса (API):** Docker на macOS [`http://localhost:8080`](http://localhost:8080)
+- **Среда исполнения планировщика:** Docker-контейнер с cron (Debian/Ubuntu, Python 3.12)
+- **Дата выполнения:** октябрь 2025
 
 ---
 
-## Цель
+## 🎯 Цель
 
-> Освоить практическое взаимодействие с HTTP-сервисом (Web API) из Python:  
-> отправка запросов, обработка параметров и ошибок, сохранение результатов в файл, ведение лога ошибок.
-
----
-
-## Суть задания
-
-1. **В учебном репозитории создать:**
-   - ветку `lab02`
-   - каталог `lab02`
-   - файл `lab02/currency_exchange_rate.py`
-2. **Поднять сервис обменных курсов** (PHP+Apache в Docker) на [`http://localhost:8080`](http://localhost:8080).
-3. **Написать Python-скрипт, который:**
-   - принимает параметры командной строки:  
-     `--from`, `--to`, `--date` (формата `YYYY-MM-DD`)
-   - делает запрос к Web API (`GET`: from, to, date; `POST`: key=API_KEY)
-   - сохраняет успешный ответ в `PROJECT_ROOT/data/to*.json` (каталог `data` создаёт при необходимости)
-   - все ошибки выводит в консоль и пишет в `PROJECT_ROOT/error.log`
-   - валидирует дату и коды валют; диапазон данных: `2025-01-01…2025-09-15`
-4. **Протестировать скрипт** минимум на 5 датах внутри диапазона, с равными интервалами.
-5. **Подготовить `readme.md`** с зависимостями, примерами запуска и краткой архитектурой.
+> Настроить автоматический запуск Python-скрипта (из ЛР2) по расписанию с помощью cron:
+>
+> - **ежедневно в 06:00** — курс MDL→EUR за вчера
+> - **еженедельно по пятницам в 17:00** — курс MDL→USD за всю прошлую неделю
 
 ---
 
-## Инфраструктура и роли компонентов
+## 🧩 Суть задания
 
-| Компонент                      | Описание                                                                                                            |
-| ------------------------------ | ------------------------------------------------------------------------------------------------------------------- |
-| Поддерживающий сервис (Docker) | Отвечает на HTTP-запросы, возвращает JSON с курсами. Требует API-ключ через POST. Данные: 2025-01-01…2025-09-15.    |
-| Python-скрипт                  | Клиент: формирует запрос, отправляет на `http://localhost:8080`, обрабатывает ответ/ошибки, пишет JSON и error.log. |
-| Репозиторий                    | Хранит исходники скрипта и вспомогательные файлы.                                                                   |
+1. **В учебном репозитории:**
+   - создать ветку `lab03`
+   - каталог `lab03/`
+   - скопировать туда содержимое ЛР2 (`lab02/*`)
+2. **В `lab03/` подготовить:**
+   - `cronjob` — расписание задач cron
+   - `weekly_usd.sh` — сбор данных за прошлую неделю
+   - `entrypoint.sh` — запуск cron и мониторинг логов
+   - `Dockerfile` — образ (Python + cron + зависимости + скрипты)
+   - `docker-compose.yml` — сборка/запуск контейнера
+3. **Логи cron** — в `/var/log/cron.log`; **данные** — в `/opt/lab03/data` (маппинг на хост)
+4. **Краткое `readme.md`** — как собрать, запустить, проверить логи и результаты
 
 ---
 
-## Подготовка поддерживающего сервиса (локально на macOS)
+## 🏗️ Инфраструктура и роли
+
+| Компонент            | Роль                                                                                     |
+| -------------------- | ---------------------------------------------------------------------------------------- |
+| API-сервис (ЛР2)     | Отдаёт JSON c курсами валют (POST: key, GET: from, to, date). Запущен в Docker на хосте. |
+| Скрипт клиента (ЛР2) | `currency_exchange_rate.py` — запрашивает курс, сохраняет JSON, логирует ошибки.         |
+| Планировщик (ЛР3)    | Docker-контейнер с cron, ежедневно/еженедельно запускает клиентский скрипт.              |
+
+---
+
+## 🧱 Подготовка репозитория
 
 ```bash
-# 1. Перейти в каталог поддерживающего проекта (где docker-compose.yml, app/, sample.env)
-cp sample.env .env
-# 2. Отредактировать .env:
-#    API_KEY=my_secret_key_123_scripting
-# 3. Запустить сервис:
-docker-compose up --build
+git checkout -b lab03
+mkdir -p lab03
+cp -R lab02/* lab03/
 ```
 
-- После запуска сервис доступен на [`http://localhost:8080`](http://localhost:8080).
+> Ветка `lab03` изолирует работу; содержимое ЛР2 переносим в `lab03/`, чтобы докеризация и cron не затрагивали ЛР2.
 
-**Быстрый самотест сервиса:**
+---
+
+## 🗓️ Cron-расписание (`lab03/cronjob`)
+
+```cron
+SHELL=/bin/bash
+PATH=/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+# Ежедневно в 06:00 — курс MDL→EUR за "вчера"
+0 6 * * * root date_yest=$(date -d 'yesterday' +\%F) && \
+API_KEY=my_secret_key_123_scripting LAB02_BASE_URL=http://host.docker.internal:8080/ \
+python3 /opt/lab03/currency_exchange_rate.py --from MDL --to EUR --date "$date_yest" \
+--api-key "$API_KEY" --base-url "$LAB02_BASE_URL" >> /var/log/cron.log 2>&1
+
+# По пятницам в 17:00 — MDL→USD за всю "прошлую неделю"
+0 17 * * 5 root API_KEY=my_secret_key_123_scripting LAB02_BASE_URL=http://host.docker.internal:8080/ \
+/opt/lab03/weekly_usd.sh >> /var/log/cron.log 2>&1
+```
+
+> - `\%F` — экранирование `%` в crontab обязательно!
+> - `host.docker.internal` — доступ из контейнера к сервису на хосте (Docker Desktop).
+> - Все задачи пишут вывод в `/var/log/cron.log`.
+
+---
+
+## 📆 Еженедельный сбор (`lab03/weekly_usd.sh`)
 
 ```bash
-# Список валют:
-curl "http://localhost:8080/?currencies" -X POST -d "key=my_secret_key_123_scripting"
+#!/usr/bin/env bash
+set -euo pipefail
+: "${API_KEY:?API_KEY is required}"
 
-# Единичный курс:
-curl "http://localhost:8080/?from=USD&to=EUR&date=2025-03-01" -X POST -d "key=my_secret_key_123_scripting"
+BASE_URL="${LAB02_BASE_URL:-http://host.docker.internal:8080/}"
+FROM="MDL"
+TO="USD"
+
+start=$(date -d 'last week monday' +%F)
+end=$(date -d 'last week sunday' +%F)
+cur="$start"
+
+while [[ "$cur" != "$(date -d "$end + 1 day" +%F)" ]]; do
+  python3 /opt/lab03/currency_exchange_rate.py --from "$FROM" --to "$TO" --date "$cur" \
+    --api-key "$API_KEY" --base-url "$BASE_URL" >> /var/log/cron.log 2>&1
+  cur=$(date -d "$cur + 1 day" +%F)
+done
 ```
+
+> Скрипт вычисляет «прошлую» неделю и для каждого дня вызывает клиент ЛР2, складывая результаты в общую папку данных.
 
 ---
 
-## Подготовка учебного репозитория и Python-окружения
+## 🚀 Entrypoint (`lab03/entrypoint.sh`)
 
 ```bash
-git checkout -b lab02
-mkdir -p lab02
-touch lab02/currency_exchange_rate.py
+#!/bin/sh
 
-# (Рекомендую) создать виртуальное окружение Python:
-python3 -m venv .venv
-source .venv/bin/activate
+create_log_file() {
+  echo "Создаю лог-файл..."
+  touch /var/log/cron.log
+  chmod 666 /var/log/cron.log
+}
 
-# Установить зависимости:
-pip install requests python-dotenv
-pip freeze > requirements.txt
+monitor_logs() {
+  echo "=== Мониторинг cron логов ==="
+  tail -f /var/log/cron.log
+}
+
+run_cron() {
+  echo "=== Запуск демона cron ==="
+  exec cron -f
+}
+
+# Экспорт окружения для cron
+env > /etc/environment
+
+# Подключаем расписание
+install -m 0644 /opt/lab03/cronjob /etc/cron.d/lab03
+crontab /etc/cron.d/lab03
+
+create_log_file
+monitor_logs &
+run_cron
 ```
 
-> Каталог `data` создавать вручную не нужно скрипт сделает это сам.
+> - `cron -f` — foreground-режим (для контейнера)
+> - `tail -f` — поток логов виден прямо в `docker compose up`
 
 ---
 
-## Сценарий работы скрипта
+## 🧱 Dockerfile (`lab03/Dockerfile`)
 
-- Скрипт парсит аргументы CLI: `--from`, `--to`, `--date`, `--api-key` (опционально), `--base-url` (опционально; по умолчанию `http://localhost:8080/`).
-- Если `--api-key` не передан, берёт ключ из переменной окружения `API_KEY`.
-- Делает запрос за списком валют (`/?currencies`) для валидации кодов (или использует fallback-набор валют).
-- Валидирует коды (3 заглавные буквы) и дату (YYYY-MM-DD) плюс диапазон (2025-01-01…2025-09-15).
-- Запрашивает курс: `GET` from/to/date, `POST` key. При ошибке сервиса (поле error) бросает исключение.
-- Успешный ответ сохраняет в `PROJECT_ROOT/data/to*.json` (UTF-8, красивый формат).
-- Любую ошибку печатает в stderr и пишет строку в `PROJECT_ROOT/error.log` с меткой времени и уровнем ERROR.
+```dockerfile
+FROM python:3.12-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+  cron ca-certificates curl tzdata && \
+  rm -rf /var/lib/apt/lists/*
+
+WORKDIR /opt/lab03
+
+COPY currency_exchange_rate.py /opt/lab03/
+COPY weekly_usd.sh /opt/lab03/
+COPY cronjob /opt/lab03/
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+
+RUN chmod +x /usr/local/bin/entrypoint.sh /opt/lab03/weekly_usd.sh && \
+  pip install --no-cache-dir requests && \
+  mkdir -p /opt/lab03/data && \
+  touch /var/log/cron.log && chmod 666 /var/log/cron.log
+
+ENV API_KEY=my_secret_key_123_scripting \
+    LAB02_BASE_URL=http://host.docker.internal:8080/ \
+    TZ=Europe/Chisinau
+
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+```
+
+> - Установлен `tzdata` — cron работает в вашем часовом поясе.
+> - Данные сохраняются в `/opt/lab03/data` (маппинг на хост).
 
 ---
 
-## Ключевые особенности реализации
+## ⚙️ docker-compose (`lab03/docker-compose.yml`)
 
-- **Явная валидация** входных параметров ещё до HTTP-запроса: формат валюты и даты, границы доступного периода.
-- **Чёткое разделение функций:** загрузка ключа, получение списка валют, запрос курса, сохранение JSON, настройка логгера и т. п.
-- **Рабочие пути:**
-  - `PROJECT_ROOT` — на уровень выше lab02 (корень учебного репозитория)
-  - `DATA_DIR` — `PROJECT_ROOT/data`
-  - `ERROR_LOG` — `PROJECT_ROOT/error.log`
-- **Безопасность:** скрипт не пишет и не читает ничего вне своего корня; ошибки фиксируются в одном месте (`error.log`).
-- **Расширяемость:** ключ можно передать через `--api-key` или через переменную окружения; базовый URL можно переопределить флагом `--base-url`.
+```yaml
+services:
+  cron:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: lab03_cron
+    environment:
+      API_KEY: "my_secret_key_123_scripting"
+      LAB02_BASE_URL: "http://host.docker.internal:8080/"
+      TZ: "Europe/Chisinau"
+    volumes:
+      - ./data:/opt/lab03/data
+    restart: unless-stopped
+```
+
+> - Том `./data:/opt/lab03/data` — чтобы видеть JSON-файлы на хосте.
+> - Время cron синхронизировано через `TZ`.
 
 ---
 
-## Примеры команд запуска на 5 датах
-
-> Перед запуском: убедиться, что Docker-сервис работает и в его `.env` установлен `API_KEY=my_secret_key_123_scripting`
+## ▶️ Запуск
 
 ```bash
-python3 lab02/currency_exchange_rate.py --from USD --to EUR --date 2025-01-01 --api-key my_secret_key_123_scripting
-python3 lab02/currency_exchange_rate.py --from USD --to EUR --date 2025-03-01 --api-key my_secret_key_123_scripting
-python3 lab02/currency_exchange_rate.py --from USD --to EUR --date 2025-05-01 --api-key my_secret_key_123_scripting
-python3 lab02/currency_exchange_rate.py --from USD --to EUR --date 2025-07-01 --api-key my_secret_key_123_scripting
-python3 lab02/currency_exchange_rate.py --from USD --to EUR --date 2025-09-01 --api-key my_secret_key_123_scripting
+cd lab03
+docker compose up --build
+```
+
+**Ожидаемые строки в консоли:**
+
+```
+Создаю лог-файл...
+=== Запуск демона cron ===
+=== Мониторинг cron логов ===
 ```
 
 ---
 
-## Ожидаемое поведение при успешных запусках
+## 📝 Проверка логов и результатов
 
-- В консоли:
+- **Логи cron:**
+  ```bash
+  docker exec -it lab03_cron bash -lc 'tail -n 100 /var/log/cron.log'
   ```
-  OK: USD->EUR on 2025-05-01: rate=… saved to …/data/USD_to_EUR_2025-05-01.json
-  ```
-- В каталоге `data/` появится 5 файлов:
-  ```
-  data/USD_to_EUR_2025-01-01.json
-  data/USD_to_EUR_2025-03-01.json
-  data/USD_to_EUR_2025-05-01.json
-  data/USD_to_EUR_2025-07-01.json
-  data/USD_to_EUR_2025-09-01.json
-  ```
-- Пример содержимого JSON:
-  ```json
-  {
-  	"from": "USD",
-  	"to": "EUR",
-  	"rate": 1.17,
-  	"date": "2025-05-01"
-  }
+- **Артефакты:**
+  ```bash
+  ls -l lab03/data
+  cat lab03/data/MDL_to_EUR_2025-10-10.json
   ```
 
 ---
 
-## Примеры ошибок и обработка
+## ✅ Ожидаемый вывод
 
-- **Неверный ключ API:**  
-  Сервис вернёт `error="Invalid API key"` или `API key is missing`; скрипт напечатает FAILED и добавит запись в error.log.
-- **Валюта вне списка:**  
-  Валидация скрипта упадёт до запроса; сообщение в консоль и в error.log.
-- **Неверный формат даты:**  
-  Валидация даты в скрипте, ошибка в консоль и в error.log.
-- **Дата вне диапазона:**  
-  Скрипт осознанно отклонит, чтобы не делать пустые запросы, и запишет ошибку.
-- **Сетевой сбой:**  
-  Исключение requests будет отражено как FAILED и записано в error.log.
+```
+OK: MDL->EUR on 2025-10-10: rate=19.73 saved to /opt/lab03/data/MDL_to_EUR_2025-10-10.json
+```
 
-> Примечание: ошибки не создают JSON-файлы в data, чтобы не путать проверяющего.
+**Пример содержимого JSON:**
 
----
-
-## Git-операции
-
-```bash
-git add lab02/currency_exchange_rate.py requirements.txt lab02/readme.md
-git commit -m "lab02: add currency_exchange_rate client and docs"
-git push -u origin lab02
+```json
+{
+	"from": "MDL",
+	"to": "EUR",
+	"rate": 19.73,
+	"date": "2025-10-10"
+}
 ```
 
 ---
 
-## Блок для скриншотов
+## 🔎 Важные нюансы
 
-| №   | Описание                                                                                                                                                                                                                                                                                      | Путь к изображению            |
-| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------- |
-| 1   | Ошибочный запрос к скрипту (пример: неверная дата/валюта или неправильный ключ). Демонстрация обработки ошибки — сообщение FAILED в консоли и запись в error.log.                                                                                                                             | ![](./screenshots/failed.png) |
-| 2   | Серия из 5 успешных запусков на разных датах + листинг каталога data и содержимое одного JSON-файла (cat). Видно 5 команд с ключом, файлы в data/ и корректный JSON.                                                                                                                          | ![](./screenshots/test.png)   |
-| 3   | Подготовка ветки и окружения: git checkout -b lab02; mkdir lab02; touch lab02/currency_exchange_rate.py; python3 -m venv .venv; source .venv/bin/activate; pip install requests python-dotenv; pip freeze > requirements.txt. Подтверждает корректную инициализацию ветки и Python-окружения. | ![](./screenshots/init.png)   |
-| 4   | Запуск сервиса и проверка: в одном терминале docker-compose up --build (логи Apache/PHP), во втором — curl запросы к /?currencies и к курсу на конкретную дату. Демонстрация, что сервис поднят и отвечает корректно.                                                                         | ![](./screenshots/run.png)    |
-| 5   | Подготовка .env и запуск Docker: cp sample.env .env; правка API_KEY; docker-compose up --build. Подтверждает корректную конфигурацию и старт контейнеров.                                                                                                                                     | ![](./screenshots/start.png)  |
+- **host ↔ контейнер:** `LAB02_BASE_URL=http://host.docker.internal:8080/`
+- **ENV для cron:** `env > /etc/environment` в entrypoint.sh
+- **Экранирование %:** в crontab — только `\%`
+- **Часовой пояс:** `TZ=Europe/Chisinau`
+- **Путь данных:** `/opt/lab03/data` (маппинг на хост)
+- **Логи:** `/var/log/cron.log` — для диагностики
+- **Надёжность:** `set -euo pipefail` в weekly_usd.sh, явные коды ошибок Python-скрипта
 
 ---
+
+## 🧪 Чек-лист проверки
+
+- [x] Ежедневная задача формирует 1 JSON за вчера (MDL→EUR)
+- [x] Еженедельная — 7 JSON-файлов за прошлую неделю (MDL→USD)
+- [x] Все файлы появляются в `lab03/data/` (на хосте)
+- [x] Ошибки протоколируются в `/var/log/cron.log`
+- [x] Проверка через `docker exec` и просмотр файлов
+
+---
+
+## 🖼️ Блок с скриншотами
+
+|   № | Описание                                                                        | Скриншот                                                                            |
+| --: | ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+|   1 | Дерево проекта в VS Code (ветка `lab03`, папка `lab03/`, файлы)                 | ![tree](screenshots/shot_tree.png) `screenshots/shot_tree.png`                      |
+|   2 | Открытый `cronjob` (две задачи: 06:00 и пятница 17:00, экранированные `%`)      | ![cronjob](screenshots/shot_cronjob.png) `screenshots/shot_cronjob.png`             |
+|   3 | Открытый `weekly_usd.sh` (цикл дат прошлой недели)                              | ![weekly](screenshots/shot_weekly.png) `screenshots/shot_weekly.png`                |
+|   4 | Открытый `entrypoint.sh` (создание лога, export env, запуск cron/tail)          | ![entrypoint](screenshots/shot_entrypoint.png) `screenshots/shot_entrypoint.png`    |
+|   5 | `Dockerfile` и `docker-compose.yml` в редакторе                                 | ![dockerfiles](screenshots/shot_dockerfiles.png) `screenshots/shot_dockerfiles.png` |
+|   6 | Консоль `docker compose up --build` (видно “Создаю лог-файл…”, cron, tail)      | ![up](screenshots/shot_up.png) `screenshots/shot_up.png`                            |
+|   7 | `ls -l lab03/data` и `cat` одного из JSON — подтверждение наличия и содержимого | ![data_json](screenshots/shot_data_json.png) `screenshots/shot_data_json.png`       |
+
+## 🧠 Выводы
+
+1. Настроен автоматический сбор курсов валют по расписанию: ежедневный MDL→EUR (за вчера) и еженедельный MDL→USD (за прошлую неделю).
+2. Реализована контейнеризация планировщика: reproducible-окружение (Python + cron), единый лог, контролируемые ENV, корректный доступ к API на хосте.
+3. Результаты сохраняются на хост (том `lab03/data`), что упрощает проверку.
+4. Соблюдены практики продакшн-качества: явная конфигурация TZ, экранирование %, централизованное логирование, автономность задач.
