@@ -1,0 +1,33 @@
+pipeline {
+  agent { label 'php-agent' }
+
+  options {
+    timestamps()
+  }
+
+  stages {
+    stage('Install Dependencies') {
+      steps {
+        echo 'Preparing project...'
+      }
+    }
+
+    stage('Test') {
+      steps {
+        echo 'Running tests...'
+      }docker compose up -d ssh-agent
+    }
+  }
+
+  post {
+    always {
+      echo 'Pipeline completed.'
+    }
+    success {
+      echo 'All stages completed successfully!'
+    }
+    failure {
+      echo 'Errors detected in the pipeline.'
+    }
+  }
+}
