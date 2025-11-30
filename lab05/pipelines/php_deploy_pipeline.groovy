@@ -37,6 +37,9 @@ pipeline {
                 # копируем артефакт из lab05/ в текущую директорию (ansible/)
                 cp ../artifact.tar.gz ./artifact.tar.gz
 
+                # устанавливаем правильные права на приватный ключ
+                chmod 600 test_server_ansible_key
+
                 # запускаем Ansible-плейбук деплоя
                 ansible-playbook -i hosts.ini deploy_php.yml -vv
             '''
