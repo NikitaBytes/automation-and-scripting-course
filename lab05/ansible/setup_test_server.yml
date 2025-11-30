@@ -1,0 +1,62 @@
+---
+- name: Setup Apache + PHP on test server
+  hosts: test
+  become: true
+  tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: true
+
+    - name: Install Apache and PHP
+      apt:
+        name:
+          - apache2
+          - php
+          - libapache2-mod-php
+          - php-xml
+          - php-mbstring
+          - php-curl
+        state: present
+
+    - name: Enable Apache modules
+      shell: a2enmod php* rewrite
+      args: { warn: false }
+      register: _mods
+      changed_when: "_mods.rc == 0"
+
+    - name: Create project root
+      file:
+        path: /var/www/html/project
+        state: directory
+        mode: "0755"
+
+    - name: Deploy default index.php
+      copy:
+        dest: /var/www/html/project/index.php
+        content: |
+          <?php phpinfo();
+
+    - name: Configure vhost
+      copy:
+        dest: /etc/apache2/sites-available/project.conf
+        content: |
+          <VirtualHost *:80>
+              ServerName localhost
+              DocumentRoot /var/www/html/project
+              <Directory /var/www/html/project>
+                  AllowOverride All
+                  Require all granted
+              </Directory>
+              ErrorLog ${APACHE_LOG_DIR}/project-error.log
+              CustomLog ${APACHE_LOG_DIR}/project-access.log combined
+          </VirtualHost>
+
+    - name: Enable site
+      shell: a2dissite 000-default || true && a2ensite project
+      args: { warn: false }
+
+    - name: Restart Apache
+      service:
+        name: apache2
+        state: restarted
+        enabled: true
