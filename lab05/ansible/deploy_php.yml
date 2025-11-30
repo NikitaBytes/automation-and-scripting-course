@@ -1,0 +1,33 @@
+---
+- name: Deploy PHP application to test server
+  hosts: test_servers
+  become: true
+
+  tasks:
+    - name: Ensure deployment directory exists
+      file:
+        path: /var/www/html/php-app
+        state: directory
+        owner: www-data
+        group: www-data
+        mode: "0755"
+
+    - name: Copy artifact from Jenkins workspace to test server
+      copy:
+        src: artifact.tar.gz
+        dest: /tmp/php-app-artifact.tar.gz
+        mode: "0644"
+
+    - name: Extract artifact into web root
+      unarchive:
+        src: /tmp/php-app-artifact.tar.gz
+        dest: /var/www/html/php-app
+        remote_src: true
+        owner: www-data
+        group: www-data
+
+    - name: Ensure Apache is running and enabled
+      service:
+        name: apache2
+        state: started
+        enabled: true
