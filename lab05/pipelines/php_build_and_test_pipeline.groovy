@@ -10,18 +10,16 @@ pipeline {
     }
 
     stage('Install dependencies') {
-      steps {
-        dir('lab05/php-app') {
-          sh '''
-            php -v
-            if ! command -v composer >/dev/null 2>&1 ; then
-              curl -sS https://getcomposer.org/installer | php
-              sudo mv composer.phar /usr/local/bin/composer
-            fi
-            composer install --no-interaction --no-progress
-          '''
+        steps {
+            dir('lab05/php-app') {
+                sh '''
+                    php -v
+                    composer --version || true
+
+                    composer install --no-interaction --no-progress
+                '''
+            }
         }
-      }
     }
 
     stage('Run tests') {
