@@ -10,20 +10,21 @@ pipeline {
     }
 
     stage('Build artifact') {
-    steps {
-        dir('lab05/php-app') {
-        sh '''
-            # удаляем старый артефакт, если есть
-            rm -f artifact.tar.gz
+        steps {
+            
+            dir('lab05') {
+            sh '''
+                # удаляем старый артефакт, если есть
+                rm -f php-app/artifact.tar.gz
 
-            # создаём новый архив, но игнорируем сам файл artifact.tar.gz
-            tar --exclude=artifact.tar.gz -czf artifact.tar.gz .
+                # создаём архив, находясь в lab05, а код берем из каталога php-app
+                tar -czf php-app/artifact.tar.gz -C php-app .
 
-            # выводим информацию о созданном файле
-            ls -lh artifact.tar.gz
-        '''
+                # выводим инфу о созданном файле
+                ls -lh php-app/artifact.tar.gz
+            '''
+            }
         }
-    }
     }
 
     stage('Deploy via Ansible') {
