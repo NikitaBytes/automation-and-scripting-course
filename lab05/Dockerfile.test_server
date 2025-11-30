@@ -1,0 +1,26 @@
+# lab05/Dockerfile.test_server
+FROM ubuntu:24.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && \
+    apt-get install -y openssh-server sudo && \
+    mkdir -p /var/run/sshd
+
+# создаём пользователя ansible без пароля
+RUN useradd -m -s /bin/bash ansible && \
+    echo "ansible ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+
+# копируем публичный ключ внутрь контейнера (файл, который мы сгенерили на хосте)
+COPY secrets/test_server_ansible_key.pub /tmp/test_server_ansible_key.pub
+
+# настраиваем authorized_keys
+RUN mkdir -p /home/ansible/.ssh && \
+    cat /tmp/test_server_ansible_key.pub >> /home/ansible/.ssh/authorized_keys && \
+    chown -R ansible:ansible /home/ansible/.ssh && \
+    chmod 700 /home/ansible/.ssh && \
+    chmod 600 /home/ansible/.ssh/authorized_keys
+
+EXPOSE 22
+
+CMD ["/usr/sbin/sshd", "-D"]

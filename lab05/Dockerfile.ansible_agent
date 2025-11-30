@@ -1,0 +1,33 @@
+FROM ubuntu:24.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    openssh-server \
+    sudo \
+    curl \
+    ca-certificates \
+    python3 \
+    python3-pip \
+    python3-venv \
+    ansible \
+    git \
+    openjdk-17-jre-headless \
+    && rm -rf /var/lib/apt/lists/*
+
+# Пользователь jenkins (под него будет SSH Jenkins)
+RUN useradd -m -s /bin/bash jenkins && \
+    mkdir -p /home/jenkins/.ssh /home/jenkins/agent && \
+    chown -R jenkins:jenkins /home/jenkins && \
+    echo "jenkins ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/jenkins && \
+    chmod 0440 /etc/sudoers.d/jenkins
+
+# SSHd
+RUN mkdir -p /var/run/sshd
+EXPOSE 22
+
+# Entrypoint: положить ключ и стартануть sshd
+COPY entrypoint.ansible.sh /entrypoint.ansible.sh
+RUN chmod +x /entrypoint.ansible.sh
+CMD ["/entrypoint.ansible.sh"]
